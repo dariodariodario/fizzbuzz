@@ -1,5 +1,6 @@
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
@@ -18,16 +19,6 @@ class FizzBuzzTest {
     static final Random random = new Random(System.currentTimeMillis());
 
     @Test
-    public void testChecksAreInTheRightSequence() {
-        FizzBuzz fizzBuzz = spy(new FizzBuzz());
-        fizzBuzz.decide(2887);
-        InOrder inOrder = inOrder(fizzBuzz);
-        inOrder.verify(fizzBuzz).isFizzBuzz(2887);
-        inOrder.verify(fizzBuzz).isFizz(2887);
-        inOrder.verify(fizzBuzz).isBuzz(2887);
-    }
-
-    @Test
     public void testChecks() {
         FizzBuzz fizzBuzz = new FizzBuzz();
         IntStream.range(1, 100).forEach(i -> assertTrue(fizzBuzz.isFizz(multipleOf(3))));
@@ -35,55 +26,50 @@ class FizzBuzzTest {
         IntStream.range(1, 100).forEach(i -> assertTrue(fizzBuzz.isFizzBuzz(multipleOfBoth(3, 5))));
     }
 
-
     @Test
     public void testCheckCallsRightTransform() {
         FizzBuzz fizzBuzz = spy(new FizzBuzz());
 
-        program(fizzBuzz);
+        setTestsValues(fizzBuzz, true, false, false);
+        assertEquals("fizz", fizzBuzz.decide(666));
+        verify(fizzBuzz).doFizz(666);
+        verify(fizzBuzz, never()).doBuzz(666);
+        verify(fizzBuzz, never()).doFizzBuzz(666);
+        verify(fizzBuzz, never()).doNormal(666);
 
-
-        Mockito.clearInvocations(fizzBuzz);
-        when(fizzBuzz.isFizz(anyInt())).thenReturn(false);
-        when(fizzBuzz.isBuzz(anyInt())).thenReturn(true);
-        when(fizzBuzz.isFizzBuzz(anyInt())).thenReturn(false);
-        fizzBuzz.decide(666);
+        setTestsValues(fizzBuzz, false, true, false);
+        assertEquals("buzz", fizzBuzz.decide(666));
         verify(fizzBuzz, never()).doFizz(666);
         verify(fizzBuzz).doBuzz(666);
         verify(fizzBuzz, never()).doFizzBuzz(666);
         verify(fizzBuzz, never()).doNormal(666);
 
-        Mockito.clearInvocations(fizzBuzz);
-        when(fizzBuzz.isFizz(anyInt())).thenReturn(false);
-        when(fizzBuzz.isBuzz(anyInt())).thenReturn(false);
-        when(fizzBuzz.isFizzBuzz(anyInt())).thenReturn(true);
-        fizzBuzz.decide(666);
+        setTestsValues(fizzBuzz, false, false, true);
+        assertEquals("fizzbuzz", fizzBuzz.decide(666));
         verify(fizzBuzz, never()).doFizz(666);
         verify(fizzBuzz, never()).doBuzz(666);
         verify(fizzBuzz).doFizzBuzz(666);
         verify(fizzBuzz, never()).doNormal(666);
 
-        Mockito.clearInvocations(fizzBuzz);
-        when(fizzBuzz.isFizz(anyInt())).thenReturn(false);
-        when(fizzBuzz.isBuzz(anyInt())).thenReturn(false);
-        when(fizzBuzz.isFizzBuzz(anyInt())).thenReturn(false);
-        fizzBuzz.decide(666);
+        setTestsValues(fizzBuzz, false, false, false);
+        assertEquals("666", fizzBuzz.decide(666));
         verify(fizzBuzz, never()).doFizz(666);
         verify(fizzBuzz, never()).doBuzz(666);
         verify(fizzBuzz, never()).doFizzBuzz(666);
         verify(fizzBuzz).doNormal(666);
     }
 
-    private void program(FizzBuzz fizzBuzz) {
-        when(fizzBuzz.isFizz(anyInt())).thenReturn(true);
-        when(fizzBuzz.isBuzz(anyInt())).thenReturn(false);
-        when(fizzBuzz.isFizzBuzz(anyInt())).thenReturn(false);
-        fizzBuzz.decide(666);
-        verify(fizzBuzz).doFizz(666);
-        verify(fizzBuzz, never()).doBuzz(666);
-        verify(fizzBuzz, never()).doFizzBuzz(666);
-        verify(fizzBuzz, never()).doNormal(666);
+    private void setTestsValues(FizzBuzz fizzBuzz, boolean fizz, boolean buzz, boolean fizzbuzz) {
+        Mockito.reset(fizzBuzz);
+        Mockito.clearInvocations(fizzBuzz);
+        doReturn(fizz).when(fizzBuzz)
+                .isFizz(anyInt());
+        doReturn(buzz).when(fizzBuzz)
+                .isBuzz(anyInt());
+        doReturn(fizzbuzz).when(fizzBuzz)
+                .isFizzBuzz(anyInt());
     }
+
 
     @Test
     public void testDecideDontAcceptZeroOrLezz() {
@@ -95,20 +81,29 @@ class FizzBuzzTest {
 
 
     @Test
-    public void testFizzBuzzCallsDecideAndCreatesString() {
+    public void testFizzBuzzCallsDecideRightOrder() {
         FizzBuzz fizzBuzz = spy(new FizzBuzz());
-        AtomicInteger calls = new AtomicInteger();
-        doAnswer((Answer<String>) invocationOnMock -> {
-            Integer i = invocationOnMock.getArgument(0);
-            calls.incrementAndGet();
-            return i.toString();
-        }).when(fizzBuzz)
-                .decide(anyInt());
-
         int n = positiveRandom();
-        String result = fizzBuzz.fizzBuzz(n);
-        assertEquals(IntStream.range(1, n + 1).mapToObj(Integer::toString).collect(Collectors.joining(" ")), result);
-        assertEquals(n, calls.get());
+        doReturn("").when(fizzBuzz).decide(anyInt());
+
+        fizzBuzz.fizzBuzz(n);
+
+        ArgumentCaptor<Integer> intAc = ArgumentCaptor.forClass(Integer.class);
+        verify(fizzBuzz, times(n)).decide(intAc.capture());
+
+        IntStream.range(1, n + 1)
+                .forEach(i -> assertEquals(i, (int) intAc.getAllValues().get(i - 1)));
+    }
+
+    @Test
+    public void testFizzBuzzStitchesTogetherTheResultOfDecide(){
+        FizzBuzz fizzBuzz = spy(new FizzBuzz());
+        doReturn("a")
+                .doReturn("b")
+                .doReturn("c")
+                .when(fizzBuzz).decide(anyInt());
+
+        assertEquals("a b c", fizzBuzz.fizzBuzz(3));
     }
 
     @Test
