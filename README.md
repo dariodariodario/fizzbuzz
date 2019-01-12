@@ -12,7 +12,7 @@ given a number n, output a string where all numbers from 1 to n are output and t
 
 This test is of simple implementation, but it is hard to test it rigorously with TDD. This is my solution.
 
-##Explanation
+## Explanation
 
 After an heated debate with a colleague, I thought it's worth writing an explanation for this implementation.
 
@@ -230,9 +230,22 @@ if every step is proven with a simple test, because of the decomposition and the
 
 Eventually the main "black box" test that I written initially will pass.
 
+## Conclusion
+
 To recap a bit the core principles of decomposition and TDD:
 
 - we must decompose the implementation every time that it is not possible to test it exhaustively. It must be possible to mock/stub the sub components and the test/implementation must give for granted their correctness.
 - every time it's difficult or confusing or lengthy to create a test case to test a subcomponent, one must find a way to decompose the implementation to remove such complexity.
 
- 
+Also notice another aspect of this technique: the fact that every component in our decomposed implementation is tested independently and trusts the correctness of the components it depends on, allows to change the business logic much more easily. 
+Suppose in fact we want fizz to be a test for multiples of 2. To do that I change the main happy test and the rule for fizz. If I had series of tests based on examples, I would have had to change many of them. But because here I isolated each aspect of the implementation, I can easily work in more independent way.
+
+Suppose also that the logic of `decide` increases massively. At that point I could also:
+
+- extract the functionality of decide in an external class
+- remove the tests for decide from the testcases for the main fizzbuzz class
+
+it would be a very clean and safe operation because the `fizzbuzz`, that is the main user of the `decide` functionality, is written and tested in a way that is not concerned about the inner working of `decide`.
+
+This allows to start writing you logic, then extend it, break it down in methods, classes and entire services, truly allowing for painless refactoring and extension of software.
+
